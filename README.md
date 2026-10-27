@@ -7,3 +7,7 @@ Misma calculadora de valores del GAD Municipal de San Jacinto de Yaguachi, con u
 
 ## Publicar con GitHub Pages
 Settings → Pages → Source: *Deploy from a branch* → Branch: `main`, carpeta `/ (root)` → Save.
+
+## Historial
+- Respaldo de la versión anterior: rama `respaldo-didactico-2026-10-27` (para volver, copie su `index.html`).
+- Cantidades editables por nivel (bóvedas 40 y nichos 8 por defecto) y mausoleos contados por edificación.

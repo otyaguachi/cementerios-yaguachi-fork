@@ -218,6 +218,11 @@ details.how ol{margin:8px 0 6px;padding-left:20px;display:grid;gap:3px}
 #t-tar th,#t-tar td{padding:6px 7px;font-size:13px}
 .expnote{margin:0 0 8px;font-size:12.5px;color:var(--muted)}
 </style>
+<style>
+.qin{width:84px!important;text-align:right;padding:5px 8px!important;background:#0a1128!important;border:1px solid #22d3ee!important;border-radius:8px!important;color:#e0faff!important;font-weight:600;box-shadow:0 0 0 1px rgba(34,211,238,.15)}
+.qin:hover{box-shadow:0 0 10px rgba(34,211,238,.45)}
+.qin:focus{box-shadow:0 0 0 3px rgba(34,211,238,.35)!important}
+</style>
 </head><body>
 
 <div id="pdfModal" class="modal" role="dialog" aria-modal="true" aria-label="Descargar PDF" hidden>
@@ -306,10 +311,11 @@ const CEMS=[
  {name:"Cementerio de Virgen de Fátima",short:"Virgen de Fátima",blocks:[{n:"Bloque 1",ad:55,inf:5},{n:"Bloque 2",ad:60,inf:0}]},
  {name:"Cementerio cabecera cantonal",short:"Cabecera cantonal",blocks:[{n:"Bloque 1",ad:36,inf:12},{n:"Bloque 2",ad:32,inf:0}]}
 ];
-const DEF={plazo:48,tasa:0,entB:15,entN:15,entM:15,alq:70,gre:5,dis:30,ter:30,usos:4,m2:80,anchoAd:0.90,largoAd:2.20,anchoIn:0.90,largoIn:1.10,permiso:60,tTer:2,tPerm:2,pobre:30,exh:30,exhN:15,insp:20,
+const DEF={plazo:48,tasa:0,entB:15,entN:15,entM:15,alq:70,gre:5,dis:30,ter:30,usos:4,m2:80,anchoM:0.90,largoM:2.20,permiso:60,tTer:2,tPerm:2,pobre:30,exh:30,exhN:15,insp:20,
  bov:[700,760,640,580],nic:[260,280,230,200]};
+DEF.qty={};CEMS.forEach((c,ci)=>c.blocks.forEach((b,bi)=>{b.key=ci+"-"+bi;DEF.qty[b.key]={b:[40,40,40,40,40,40],n:[8,8,8,8,8,8,8,8],m:b.ad+b.inf}}));
 let S=JSON.parse(JSON.stringify(DEF));
-const KEY="valores-cementerios-didactico-v1";
+const KEY="valores-cementerios-didactico-v2";
 try{const r=localStorage.getItem(KEY); if(r){const o=JSON.parse(r); S=Object.assign(S,o)}}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 
@@ -320,19 +326,19 @@ const usd=v=>"$ "+nf(v);
 const int=v=>nf(v,0);
 
 /* ---------- cálculo ---------- */
-function levels(){
-  const b=S.bov,n=S.nic;
+function levels(key){
+  const b=S.bov,n=S.nic,qq=(S.qty&&S.qty[key])||null;
   return {
-    "Bóvedas":[b[0],b[1],b[1],b[2],b[2],b[3]].map((p,i)=>({niv:"Nivel "+(i+1),p,q:20,gre:i===5})),
-    "Nichos":[n[0],n[1],n[1],n[1],n[2],n[2],n[2],n[3]].map((p,i)=>({niv:"Nivel "+(i+1),p,q:4,gre:i===7})),
+    "Bóvedas":[b[0],b[1],b[1],b[2],b[2],b[3]].map((p,i)=>({niv:"Nivel "+(i+1),p,q:qq?qq.b[i]:40,gre:i===5})),
+    "Nichos":[n[0],n[1],n[1],n[1],n[2],n[2],n[2],n[3]].map((p,i)=>({niv:"Nivel "+(i+1),p,q:qq?qq.n[i]:8,gre:i===7})),
   };
 }
 const round2=x=>Math.round((x+Number.EPSILON)*100)/100;
-const areaAd=()=>round2(S.anchoAd*S.largoAd*1000)/1000, areaIn=()=>round2(S.anchoIn*S.largoIn*1000)/1000;
-const mausP=()=>[{niv:"Adultos",p:round2(S.anchoAd*S.largoAd*S.m2)},{niv:"Infantiles",p:round2(S.anchoIn*S.largoIn*S.m2)}];
+const areaM=()=>round2(S.anchoM*S.largoM*1000)/1000;
+const mausP=()=>[{niv:"Por edificación",p:round2(S.anchoM*S.largoM*S.m2)}];
 const rebaja=(p,pct)=>round2(p*(1-pct/100));
 const nfa=v=>nf(v,3).replace(/0+$/,"").replace(/,$/,"");
-function mausoleos(blk){const m=mausP();return [{...m[0],q:blk.ad},{...m[1],q:blk.inf}]}
+function mausoleos(blk){const m=mausP();return [{...m[0],q:S.qty[blk.key].m}]}
 function entradaPct(cat){return cat==="Bóvedas"?S.entB:cat==="Nichos"?S.entN:S.entM}
 function calc(cat,it){
   const ent=Math.round(it.p*entradaPct(cat)/100/5)*5;
@@ -345,14 +351,14 @@ function calc(cat,it){
   return {ent,cuota,monto,alq,alqTot:it.q*alq};
 }
 function blockData(blk){
-  const L=levels(); L["Mausoleos"]=mausoleos(blk);
+  const L=levels(blk.key); L["Mausoleos"]=mausoleos(blk);
   const out=[]; let tq=0,tm=0,ta=0;
   for(const cat of ["Bóvedas","Nichos","Mausoleos"]){
     const rows=L[cat].map(it=>({...it,...calc(cat,it)}));
     const q=rows.reduce((a,r)=>a+r.q,0), m=rows.reduce((a,r)=>a+r.monto,0), a=rows.reduce((x,r)=>x+r.alqTot,0);
     out.push({cat,rows,q,m,a}); tq+=q;tm+=m;ta+=a;
   }
-  return {cats:out,q:tq,m:tm,a:ta};
+  return {cats:out,q:tq,m:tm,a:ta,key:blk.key};
 }
 const HEAD=["Categoría / Nivel","Cantidad","Entrada","PVP (adquisición)","Plazo (meses)","Cuota mensual","Monto a recibir con la venta (total)","Alquiler propuesto (% del PVP)","Monto a recibir por alquiler (total)"];
 const headTxt=()=>["Categoría / Nivel","Cantidad","Entrada","PVP (adquisición)","Plazo (meses)","Cuota mensual","Monto a recibir con la venta (total)","Alquiler propuesto ("+nf(S.alq,S.alq%1?1:0)+"% del PVP)","Monto a recibir por alquiler (total)"];
@@ -363,12 +369,13 @@ const NOTES=()=>[
  "3.1. Descuentos propuestos para todos los puestos: "+nf(S.dis,S.dis%1?1:0)+"% a personas con discapacidad y "+nf(S.ter,S.ter%1?1:0)+"% a personas de la tercera edad. No se acumulan entre sí ni con los demás descuentos o con la rebaja por pobreza. Verificar con Procuraduría Síndica si la normativa nacional exige un porcentaje mayor.",
  "4. Niveles de igual valor. Bóvedas: 2 y 3; 4 y 5. Nichos: 2, 3 y 4; 5, 6 y 7. El Nivel 1 de bóvedas ("+usd(S.bov[0])+") y de nichos ("+usd(S.nic[0])+") se fija por separado de los niveles intermedios; desde el nivel 2 el valor disminuye a medida que aumenta el nivel.",
  "5. Tasas adicionales al PVP (permiso de construcción, tasa de terreno, inspección, exhumación): ver la pestaña «Notas y tasas».",
+ "6. Los mausoleos se cuentan por edificación (una construcción = un mausoleo), sin separar adultos e infantiles. Su PVP = área (ancho x largo) x valor del terreno por m². La cantidad de puestos por nivel en bóvedas y nichos, y la de mausoleos, son editables.",
 ];
 function tasasRows(){
   const tot=S.permiso+S.tTer+S.tPerm;
   return [
   ["Permiso de construcción por bóveda o nicho",usd(S.permiso),"Bóvedas y nichos","Reforma Art. 1 (modifica Art. 15)","Pago al contado y por una sola vez; no se exonera (Art. 16). Confirmar si se cobra cuando la construcción la ejecuta el GAD."],
-  ["Valor del terreno por m²",usd(S.m2),"Mausoleos (compra de terreno)","Reforma Art. 1 (modifica Art. 15); Art. 5 c","Base del PVP de mausoleos (ancho x largo x valor por m²). Adulto "+nf(S.anchoAd)+" x "+nf(S.largoAd)+" m = "+nfa(areaAd())+" m²; infantil "+nf(S.anchoIn)+" x "+nf(S.largoIn)+" m = "+nfa(areaIn())+" m²."],
+  ["Valor del terreno por m²",usd(S.m2),"Mausoleos (compra de terreno)","Reforma Art. 1 (modifica Art. 15); Art. 5 c","Base del PVP de cada mausoleo (ancho x largo x valor por m²). Por edificación: "+nf(S.anchoM)+" x "+nf(S.largoM)+" m = "+nfa(areaM())+" m²."],
   ["Tasa por compra del terreno municipal",usd(S.tTer),"Bóvedas, nichos y mausoleos","Art. 15","Se suma al valor de adquisición."],
   ["Tasa por permiso de construcción",usd(S.tPerm),"Bóvedas, nichos y mausoleos","Art. 15","Se suma al valor de adquisición."],
   ["Total de tasas por adquisición (permiso + terreno + permiso)",usd(tot),"Bóvedas y nichos","Arts. 15 y 16 (con Reforma)","Adicional al PVP. En mausoleos el valor del terreno ya está en el PVP."],
@@ -401,16 +408,15 @@ function buildForm(){
    secHTML("🏷️","Descuentos","Todos en porcentaje; no se acumulan entre sí",F(fld("gre","🤝","Gremios y organizaciones sin fines de lucro",S.gre,"pct"),fld("dis","♿","Personas con discapacidad",S.dis,"pct"),fld("ter","👵","Personas de la tercera edad",S.ter,"pct"),fld("pobre","🤲","Rebaja por pobreza (Art. 17)",S.pobre,"pct")),"c-violet"),
    secHTML("🧱","Precios de bóvedas","6 niveles; el último va con descuento a gremios",F(fld("b0","1️⃣","Nivel 1",S.bov[0],"usd"),fld("b1","2️⃣","Niveles 2 y 3",S.bov[1],"usd"),fld("b2","4️⃣","Niveles 4 y 5",S.bov[2],"usd"),fld("b3","6️⃣","Nivel 6",S.bov[3],"usd"))+`<div id="w-bov"></div>`,"c-blue"),
    secHTML("🏺","Precios de nichos","8 niveles; el último va con descuento a gremios",F(fld("n0","1️⃣","Nivel 1",S.nic[0],"usd"),fld("n1","2️⃣","Niveles 2, 3 y 4",S.nic[1],"usd"),fld("n2","5️⃣","Niveles 5, 6 y 7",S.nic[2],"usd"),fld("n3","8️⃣","Nivel 8",S.nic[3],"usd"))+`<div id="w-nic"></div>`,"c-lime"),
-   secHTML("🏛️","Mausoleos: dimensiones y área","El área se calcula sola: ancho × largo",
-     `<div class="sub2"><h4>🧔 Adultos</h4>${F(fld("anchoAd","↔️","Ancho",S.anchoAd,"m"),fld("largoAd","↕️","Largo",S.largoAd,"m"))}<div class="calc"><span>⬛ Área</span><b id="areaAdV"></b><span>💲 PVP</span><b id="pAdV"></b></div></div>`+
-     `<div class="sub2"><h4>🧒 Niños</h4>${F(fld("anchoIn","↔️","Ancho",S.anchoIn,"m"),fld("largoIn","↕️","Largo",S.largoIn,"m"))}<div class="calc"><span>⬛ Área</span><b id="areaInV"></b><span>💲 PVP</span><b id="pInV"></b></div></div>`+
-     F(fld("m2","🌎","Valor del terreno por metro cuadrado (Reforma Art. 1)",S.m2,"m2usd")),"c-pink"),
+   secHTML("🏛️","Mausoleos: dimensiones y área","Se cuentan por edificación (una construcción = un mausoleo)",
+     `<div class="sub2"><h4>🏛️ Mausoleo (por edificación)</h4>${F(fld("anchoM","↔️","Ancho",S.anchoM,"m"),fld("largoM","↕️","Largo",S.largoM,"m"))}<div class="calc"><span>⬛ Área</span><b id="areaMV"></b><span>💲 PVP por mausoleo</span><b id="pMV"></b></div></div>`+
+     F(fld("m2","🌎","Valor del terreno por metro cuadrado (Reforma Art. 1)",S.m2,"m2usd"))+`<p class="expnote">🔢 La cantidad de mausoleos se edita en la tabla de cada bloque, en la pestaña de cada cementerio.</p>`,"c-pink"),
    secHTML("🧾","Tasas de la ordenanza","Valores en dólares; las marcadas «propuesta» no están en la ordenanza",F(fld("permiso","🏗️","Permiso de construcción por bóveda o nicho",S.permiso,"usd"),fld("tTer","🌱","Tasa por compra del terreno (Art. 15)",S.tTer,"usd"),fld("tPerm","📝","Tasa por permiso de construcción (Art. 15)",S.tPerm,"usd"),fld("exh","⚰️","Exhumación, bóvedas y mausoleos (propuesta)",S.exh,"usd"),fld("exhN","🏺","Exhumación, nichos (propuesta)",S.exhN,"usd"),fld("insp","🔍","Inspección por transferencia (propuesta)",S.insp,"usd")),"c-amber")
   ].join("");
 }
 function bindForm(){
   const num=(id)=>{const v=parseFloat($(id).value);return isFinite(v)&&v>=0?v:0};
-  const map={plazo:"plazo",tasa:"tasa",entB:"entB",entN:"entN",entM:"entM",alq:"alq",gre:"gre",dis:"dis",ter:"ter",usos:"usos",m2:"m2",anchoAd:"anchoAd",largoAd:"largoAd",anchoIn:"anchoIn",largoIn:"largoIn",permiso:"permiso",tTer:"tTer",tPerm:"tPerm",pobre:"pobre",exh:"exh",exhN:"exhN",insp:"insp"};
+  const map={plazo:"plazo",tasa:"tasa",entB:"entB",entN:"entN",entM:"entM",alq:"alq",gre:"gre",dis:"dis",ter:"ter",usos:"usos",m2:"m2",anchoM:"anchoM",largoM:"largoM",permiso:"permiso",tTer:"tTer",tPerm:"tPerm",pobre:"pobre",exh:"exh",exhN:"exhN",insp:"insp"};
   Object.keys(map).forEach(k=>$(k).addEventListener("input",()=>{S[k]=num(k); if(k==="plazo"&&S.plazo<1)S.plazo=1; save();renderDerived()}));
   [0,1,2,3].forEach(i=>{$("b"+i).addEventListener("input",()=>{S.bov[i]=num("b"+i);save();renderDerived()});$("n"+i).addEventListener("input",()=>{S.nic[i]=num("n"+i);save();renderDerived()})});
 }
@@ -428,11 +434,13 @@ function renderTar(){
   }
   $("t-tar").innerHTML=h+"</tbody>";
 }
+const QC={"Bóvedas":"b","Nichos":"n","Mausoleos":"m"};
+const qIn=(k,cat,i,v)=>`<input class="qin" type="number" min="0" step="1" inputmode="numeric" value="${v}" data-k="${k}" data-c="${QC[cat]}" data-i="${i}" aria-label="Cantidad de ${cat.toLowerCase()}, fila ${i+1}">`;
 function blockTable(bd){
   let h=`<thead><tr>${headTxt().map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>`;
   bd.cats.forEach(c=>{
     h+=`<tr class="cat"><td colspan="9">${CE[c.cat]} ${c.cat}</td></tr>`;
-    c.rows.forEach(r=>{h+=`<tr class="${r.gre?'gre':''}"><td>${r.niv}${r.gre?' (*)':''}</td><td>${int(r.q)}</td><td>${usd(r.ent)}</td><td>${usd(r.p)}</td><td>${S.plazo}</td><td>${usd(r.cuota)}</td><td>${usd(r.monto)}</td><td>${usd(r.alq)}</td><td>${usd(r.alqTot)}</td></tr>`});
+    c.rows.forEach((r,ri)=>{h+=`<tr class="${r.gre?'gre':''}"><td>${r.niv}${r.gre?' (*)':''}</td><td>${qIn(bd.key,c.cat,ri,r.q)}</td><td>${usd(r.ent)}</td><td>${usd(r.p)}</td><td>${S.plazo}</td><td>${usd(r.cuota)}</td><td>${usd(r.monto)}</td><td>${usd(r.alq)}</td><td>${usd(r.alqTot)}</td></tr>`});
     h+=`<tr class="sub"><td>Total ${c.cat}</td><td>${int(c.q)}</td><td></td><td></td><td></td><td></td><td>${usd(c.m)}</td><td></td><td>${usd(c.a)}</td></tr>`;
   });
   h+=`<tr class="tot"><td>TOTAL BLOQUE</td><td>${int(bd.q)}</td><td></td><td></td><td></td><td></td><td>${usd(bd.m)}</td><td></td><td>${usd(bd.a)}</td></tr>`;
@@ -461,10 +469,10 @@ function elevHTML(ci,cat){
   const gy=pad+n*ch;g+=`<line class="egr" x1="${lw}" y1="${gy}" x2="${W-pad}" y2="${gy}"/><text class="et" x="${lw+pad}" y="${gy+11}">Suelo (nivel 1 = más bajo)</text>`;
   return `<div class="elev"><h5>${cat} · ${cols} por fila × ${n} niveles</h5><svg viewBox="0 0 ${W} ${H}" role="group" aria-label="Vista de ${cat.toLowerCase()} por nivel" id="ev-${ci}-${k}">${g}</svg><div class="einfo" id="ei-${ci}-${k}" aria-live="polite"></div></div>`;
 }
-function elevInfo(cat,lvl){
+function elevInfo(cat,lvl,ci){
   const it=levels()[cat][lvl-1],c=calc(cat,it),n=ELEV[cat].n;
   const tag=lvl===1?" · el más bajo (junto al suelo)":lvl===n?" · último nivel, para gremios y organizaciones sin fines de lucro":"";
-  let dl=`<dt>PVP</dt><dd>${usd(it.p)}</dd><dt>Entrada</dt><dd>${usd(c.ent)}</dd><dt>Cuota mensual</dt><dd>${usd(c.cuota)}</dd><dt>Alquiler</dt><dd>${usd(c.alq)}</dd><dt>Puestos por bloque</dt><dd>${int(it.q)}</dd>`;
+  let dl=`<dt>PVP</dt><dd>${usd(it.p)}</dd><dt>Entrada</dt><dd>${usd(c.ent)}</dd><dt>Cuota mensual</dt><dd>${usd(c.cuota)}</dd><dt>Alquiler</dt><dd>${usd(c.alq)}</dd><dt>Puestos en este nivel</dt><dd>${CEMS[ci].blocks.map((b,i)=>"B"+(i+1)+": "+int(S.qty[b.key][ELEV[cat].k][lvl-1])).join(" · ")}</dd>`;
   if(lvl===n)dl+=`<dt>Con desc. gremios</dt><dd>${usd(rebaja(it.p,S.gre))}</dd>`;
   dl+=`<dt>Con desc. discapacidad</dt><dd>${usd(rebaja(it.p,S.dis))}</dd><dt>Con desc. tercera edad</dt><dd>${usd(rebaja(it.p,S.ter))}</dd>`;
   return `<strong>${cat} · Nivel ${lvl}${tag}</strong><dl>${dl}</dl>`;
@@ -473,7 +481,7 @@ function paintElev(ci,cat){
   const {k}=ELEV[cat],st=ES[ci][cat]||(ES[ci][cat]={sel:null,hov:null}),svg=$("ev-"+ci+"-"+k); if(!svg)return;
   const act=st.hov||st.sel;
   svg.querySelectorAll(".er").forEach(r=>r.classList.toggle("on",+r.dataset.lvl===act));
-  $("ei-"+ci+"-"+k).innerHTML=act?elevInfo(cat,act):`<span class="hint">Pase el cursor o toque un nivel. Cuanto más oscuro, más costoso.</span>`;
+  $("ei-"+ci+"-"+k).innerHTML=act?elevInfo(cat,act,ci):`<span class="hint">Pase el cursor o toque un nivel. Cuanto más oscuro, más costoso.</span>`;
 }
 function bindElev(ci){
   Object.keys(ELEV).forEach(cat=>{
@@ -505,13 +513,14 @@ function planHTML(ci){
    <div class="elev-wrap"><h4>🧗 Vistas por nivel (ejemplo)</h4><p class="hint" style="margin:0">El nivel 1 es el más bajo (junto al suelo) y tiene un valor propio, menor que el de los niveles intermedios; desde el nivel 2 el precio baja al subir (bóvedas hasta el 6, nichos hasta el 8). Se dibujan 4 puestos por fila a modo de ejemplo.</p>
    <div class="elev-grid">${elevHTML(ci,"Bóvedas")}${elevHTML(ci,"Nichos")}</div></div></div></div></div>`;
 }
+const per=a=>a.length+" niveles · "+(a.every(x=>x===a[0])?a[0]+" por nivel":"cantidades distintas");
 function zoneInfo(ci,key){
   const [k,b]=key.split("_"), bi=b==="b1"?0:1, blk=CEMS[ci].blocks[bi], bd=blockData(blk);
   const nm=blk.n+" · "+KIND[k]; const rng=rows=>{const p=rows.map(r=>r.p);return Math.min(...p)===Math.max(...p)?usd(p[0]):usd(Math.min(...p))+" a "+usd(Math.max(...p))};
   let dl="";const row=(a,v)=>dl+=`<dt>${a}</dt><dd>${v}</dd>`;
-  if(k==="boveda"){const c=bd.cats[0];row("Cantidad",int(c.q)+" bóvedas");row("Niveles","6 niveles de 20");row("PVP (nivel 6 a 1)",rng(c.rows));row("Monto – adquisición",usd(c.m));row("Monto – alquiler",usd(c.a))}
-  else if(k==="nicho"){const c=bd.cats[1];row("Cantidad",int(c.q)+" nichos");row("Niveles","8 niveles de 4");row("PVP (nivel 8 a 1)",rng(c.rows));row("Monto – adquisición",usd(c.m));row("Monto – alquiler",usd(c.a))}
-  else if(k==="mausoleo"){const c=bd.cats[2];row("Cantidad",int(c.q)+" mausoleos");c.rows.forEach(r=>row(r.niv,int(r.q)+" × "+usd(r.p)));row("Monto – adquisición",usd(c.m));row("Monto – alquiler",usd(c.a))}
+  if(k==="boveda"){const c=bd.cats[0];row("Cantidad",int(c.q)+" bóvedas");row("Niveles",per(S.qty[blk.key].b));row("PVP (nivel 6 a 1)",rng(c.rows));row("Monto – adquisición",usd(c.m));row("Monto – alquiler",usd(c.a))}
+  else if(k==="nicho"){const c=bd.cats[1];row("Cantidad",int(c.q)+" nichos");row("Niveles",per(S.qty[blk.key].n));row("PVP (nivel 8 a 1)",rng(c.rows));row("Monto – adquisición",usd(c.m));row("Monto – alquiler",usd(c.a))}
+  else if(k==="mausoleo"){const c=bd.cats[2];row("Cantidad",int(c.q)+" mausoleos (edificaciones)");c.rows.forEach(r=>row(r.niv,int(r.q)+" × "+usd(r.p)));row("Monto – adquisición",usd(c.m));row("Monto – alquiler",usd(c.a))}
   else{bd.cats.forEach(c=>row(c.cat,int(c.q)+" · "+usd(c.m)));row("Total puestos",int(bd.q));row("Monto – adquisición",usd(bd.m));row("Monto – alquiler",usd(bd.a))}
   return `<h4>${nm}</h4><dl>${dl}</dl><button type="button" class="go" data-ci="${ci}" data-bi="${bi}">👉 Ver tabla de ${blk.n}</button>`;
 }
@@ -536,7 +545,7 @@ function bindPlan(ci){
 }
 function renderCems(){
   CEMS.forEach((c,i)=>{
-    let h=`<h2>${i?"🏛️":"🕊️"} ${c.name}</h2>`;
+    let h=`<h2>${i?"🏛️":"🕊️"} ${c.name}</h2><p class="hint" style="margin:0 0 12px">✏️ La columna «Cantidad» es editable: escriba el número de puestos y pulse Enter o Tab. Los mausoleos se cuentan por edificación.</p>`;
     c.blocks.forEach((b,bi)=>{h+=`<div class="blk" id="tbl-${i}-${bi}"><h3>📦 ${b.n}</h3>${blockTable(blockData(b))}</div>`});
     $("p-"+i).innerHTML=h+`<div class="card" style="margin-bottom:22px"><h3>📝 Notas</h3>${notesHTML()}</div>`+planHTML(i);
     bindPlan(i);
@@ -571,9 +580,9 @@ function renderKpis(){
 }
 function renderDerived(){
   orderWarn(S.bov,"w-bov","las bóvedas"); orderWarn(S.nic,"w-nic","los nichos");
-  $("areaAdV").textContent=nfa(areaAd())+" m²"; $("pAdV").textContent=usd(mausP()[0].p);
-  $("areaInV").textContent=nfa(areaIn())+" m²"; $("pInV").textContent=usd(mausP()[1].p);
-  renderKpis();renderTar();renderCems();renderRes();renderTas();
+  $("areaMV").textContent=nfa(areaM())+" m²"; $("pMV").textContent=usd(mausP()[0].p);
+  renderKpis();
+  renderTar();renderCems();renderRes();renderTas();
 }
 
 /* ---------- pestañas ---------- */
@@ -654,7 +663,7 @@ async function exportPdf(){
     title(d,"Valores de cementerios – Supuestos y tarifario","GAD Municipal de San Jacinto de Yaguachi · Generado el "+fecha);
     const sup=[["Plazo",S.plazo+" meses"],["Tasa de interés anual",nf(S.tasa,2)+"%"],["Entrada (bóvedas / nichos / mausoleos)",S.entB+"% / "+S.entN+"% / "+S.entM+"% del PVP"],
      ["Alquiler",S.alq+"% del PVP"],["Descuento gremios y organizaciones sin fines de lucro",S.gre+"%"],["Descuento personas con discapacidad / tercera edad",S.dis+"% / "+S.ter+"%"],["Usos máximos por puesto",String(S.usos)],
-     ["Valor del terreno por m²",usd(S.m2)],["Mausoleo adulto (ancho x largo = área)",nf(S.anchoAd)+" x "+nf(S.largoAd)+" m = "+nfa(areaAd())+" m²"],["Mausoleo infantil (ancho x largo = área)",nf(S.anchoIn)+" x "+nf(S.largoIn)+" m = "+nfa(areaIn())+" m²"],
+     ["Valor del terreno por m²",usd(S.m2)],["Mausoleo, por edificación (ancho x largo = área)",nf(S.anchoM)+" x "+nf(S.largoM)+" m = "+nfa(areaM())+" m²"],
      ["Permiso de construcción por bóveda o nicho",usd(S.permiso)],["Tasa por compra del terreno / por permiso de construcción",usd(S.tTer)+" / "+usd(S.tPerm)],["Rebaja por pobreza (Art. 17)",S.pobre+"%"],["Exhumación bóvedas y mausoleos / nichos (propuesta)",usd(S.exh)+" / "+usd(S.exhN)],["Inspección por transferencia (propuesta)",usd(S.insp)]];
     tb(d,s,{startY:PM+34,head:[["Supuesto","Valor"]],body:sup,tableWidth:300,margin:{left:PM,right:PW-PM-300},columnStyles:{0:{cellWidth:170}}});
     const L=levels(); L.Mausoleos=mausP();
@@ -675,7 +684,7 @@ async function exportPdf(){
       const tt={fontStyle:"bold",fillColor:GRN,textColor:255};
       body.push([cell("TOTAL "+b.n.toUpperCase(),tt),cell(int(bd.q),tt),cell("",tt),cell("",tt),cell("",tt),cell("",tt),cell(usd(bd.m),tt),cell("",tt),cell(usd(bd.a),tt)]);
       section((d,s)=>{
-        title(d,"Propuesta de valores – "+c.name,"Cantidades según el Excel «Cálculo de valores cementerio».");
+        title(d,"Propuesta de valores – "+c.name,"Cantidades configuradas en la propuesta (bóvedas y nichos por nivel; mausoleos por edificación).");
         d.setFont("helvetica","bold");d.setFontSize(12);d.setTextColor(20,40,30);d.text(b.n,PM,PM+42);
         tb(d,s,{startY:PM+50,head:[headTxt()],body,styles:{fontSize:7.8*s,cellPadding:2.1*s,halign:"right"},headStyles:{fillColor:GRN,halign:"center",valign:"middle"},columnStyles:{0:{halign:"left",cellWidth:92}}});
         if(last){let y=d.lastAutoTable.finalY+12;d.setFont("helvetica","bold");d.setFontSize(9*s);d.setTextColor(20,40,30);d.text("NOTAS",PM,y);y+=11*s;
@@ -850,6 +859,15 @@ $("srch").addEventListener("input",e=>buildArts(e.target.value));
 $("btnPdf").addEventListener("click",exportPdf);
 $("pdfClose").addEventListener("click",()=>{$("pdfModal").hidden=true});
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("pdfModal").hidden)$("pdfClose").click()});
+ function onQty(e){const el=e.target;if(!el.classList||!el.classList.contains("qin"))return;
+  const k=el.dataset.k,c=el.dataset.c,i=+el.dataset.i,v=Math.max(0,Math.floor(parseFloat(el.value))||0);
+  if(c==="m")S.qty[k].m=v;else S.qty[k][c][i]=v;
+  save();
+  setTimeout(()=>{const a=document.activeElement,id=a&&a.classList&&a.classList.contains("qin")?{k:a.dataset.k,c:a.dataset.c,i:a.dataset.i}:null;
+    renderDerived();
+    if(id){const n=document.querySelector(`input.qin[data-k="${id.k}"][data-c="${id.c}"][data-i="${id.i}"]`);if(n)n.focus()}},0);
+}
+["p-0","p-1"].forEach(id=>$(id).addEventListener("change",onQty));
 $("btnReset").addEventListener("click",()=>{S=JSON.parse(JSON.stringify(DEF));save();buildForm();bindForm();renderDerived();setStatus("Supuestos restablecidos a los valores propuestos.")});
 (async()=>{
   try{ if(window.claude&&claude.use){ try{downloads=await claude.use("downloads")}catch(e){} try{sample=await claude.use("sample")}catch(e){} } }catch(e){}
