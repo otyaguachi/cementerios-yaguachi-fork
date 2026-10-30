@@ -311,11 +311,11 @@ const CEMS=[
  {name:"Cementerio de Virgen de Fátima",short:"Virgen de Fátima",blocks:[{n:"Bloque 1",ad:55,inf:5},{n:"Bloque 2",ad:60,inf:0}]},
  {name:"Cementerio cabecera cantonal",short:"Cabecera cantonal",blocks:[{n:"Bloque 1",ad:36,inf:12},{n:"Bloque 2",ad:32,inf:0}]}
 ];
-const DEF={plazo:48,tasa:0,entB:15,entN:15,entM:15,alq:70,gre:5,dis:30,ter:30,usos:4,m2:80,anchoM:0.90,largoM:2.20,permiso:60,tTer:2,tPerm:2,pobre:30,exh:30,exhN:15,insp:20,
+const DEF={plazo:48,tasa:0,entB:15,entN:15,entM:15,alq:70,gre:5,dis:30,ter:30,usos:4,m2:80,anchoM:9.70,largoM:7.10,permiso:60,tTer:2,tPerm:2,pobre:30,exh:30,exhN:15,insp:20,
  bov:[700,760,640,580],nic:[260,280,230,200]};
-DEF.qty={};CEMS.forEach((c,ci)=>c.blocks.forEach((b,bi)=>{b.key=ci+"-"+bi;DEF.qty[b.key]={b:[40,40,40,40,40,40],n:[8,8,8,8,8,8,8,8],m:b.ad+b.inf}}));
+DEF.qty={};CEMS.forEach((c,ci)=>c.blocks.forEach((b,bi)=>{b.key=ci+"-"+bi;DEF.qty[b.key]={b:[40,40,40,40,40,40],n:[8,8,8,8,8,8,8,8],m:({"0-0":9,"0-1":3,"1-0":0,"1-1":3})[b.key]}}));
 let S=JSON.parse(JSON.stringify(DEF));
-const KEY="valores-cementerios-didactico-v2";
+const KEY="valores-cementerios-didactico-v3";
 try{const r=localStorage.getItem(KEY); if(r){const o=JSON.parse(r); S=Object.assign(S,o)}}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 
